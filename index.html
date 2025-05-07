@@ -1,18 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Adversarial Minesweeper</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="container">
-    <div id="topbar">
-      <div id="counter">099</div>
-      <div id="face" onclick="startGame()">😊</div>
-      <div id="timer">000</div>
-    </div>
-    <div id="board"></div>
+  <div id="page">
+    <header id="header">
+      <h1>Adversarial Minesweeper</h1>
+      <p><a href="https://github.com/tusharmurali/adversarial-minesweeper" target="_blank">View on GitHub</a></p>
+    </header>
+
+    <main id="container">
+      <div id="topbar">
+        <div id="counter">099</div>
+        <div id="face" onclick="startGame()">😊</div>
+        <div id="timer">000</div>
+      </div>
+      <div id="board"></div>
+    </main>
+
+    <div id="message"></div>
   </div>
 
   <script src="script.js"></script>

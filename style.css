@@ -1,83 +1,172 @@
+:root {
+  --rows: 7;
+  --cols: 7;
+  --cell-size: 44px;
+  --cell-gap: 1px;
+  --border-light: #fff;
+  --border-dark: #808080;
+  --bg-main: #c0c0c0;
+  --bg-revealed: #e0e0e0;
+  --text-color: red;
+}
+
+/* Reset & Base Layout */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body, html {
+  height: 100%;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #bdbdbd;
+}
+
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #bdbdbd;
-    display: flex;
-    justify-content: center;
-    padding-top: 20px;
-  }
+  display: flex;
+  justify-content: center;
+  padding-top: 20px;
+}
 
-  #container {
-    border: 4px solid #808080;
-    background: #c0c0c0;
-    padding: 10px;
-    display: inline-block;
-  }
+/* Page Wrapper */
+#page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
 
-  #topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    background: #c0c0c0;
-    border: 2px inset #fff;
-    padding: 4px 8px;
-  }
+/* Header */
+#header {
+  text-align: center;
+  font-family: "Segoe UI", sans-serif;
+  margin: 20px 0 8px;
+}
 
-  #counter, #timer {
-    background: black;
-    color: red;
-    font-family: monospace;
-    font-size: 20px;
-    width: 60px;
-    text-align: right;
-    padding: 2px;
-    border: 2px inset #808080;
-  }
+#header h1 {
+  margin: 0;
+  font-size: 28px;
+}
 
-  #face {
-    font-size: 24px;
-    cursor: pointer;
-    border: 2px outset #fff;
-    background: #c0c0c0;
-    padding: 2px 6px;
-  }
+#header a {
+  font-size: 16px;
+  color: #007acc;
+  text-decoration: none;
+}
 
-  #board {
-    display: grid;
-    gap: 1px;
-    background: #808080;
-  }
+#header p {
+  margin: 4px 0 0;
+  font-size: 16px;
+}
 
-  .cell {
-    background: #c0c0c0;
-    border: 2px outset #fff;
-    text-align: center;
-    user-select: none;
-  }
+/* Message */
+#message {
+  text-align: center;
+  margin-top: 8px;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 16px;
+}
 
-  .cell.revealed {
-    background: #e0e0e0;
-    border: 1px solid #999;
-  }
+/* Container */
+#container {
+  display: grid;
+  padding: 10px;
+  background: var(--bg-main);
+  border: 4px outset var(--border-light);
+}
 
-  .cell.flagged {
-    background: #c0c0c0;
-    color: red;
-  }
+/* Topbar */
+#topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  background: var(--bg-main);
+  border: 4px inset var(--border-light);
+}
 
-  .cell.mine {
-    background: red;
-  }
+/* Timer & Counter */
+#counter,
+#timer {
+  background: black;
+  color: var(--text-color);
+  font-family: monospace;
+  font-size: 26px;
+  width: 60px;
+  text-align: right;
+  padding: 2px;
+  border: 2px inset var(--border-dark);
+}
 
-  .cell.disabled {
-    pointer-events: none;
-  }
+/* Face Button */
+#face {
+  font-size: 26px;
+  cursor: pointer;
+  padding: 4px 8px;
+  background: var(--bg-main);
+  border: 4px outset var(--border-light);
+}
 
-  .number-1 { color: blue; }
-  .number-2 { color: green; }
-  .number-3 { color: red; }
-  .number-4 { color: darkblue; }
-  .number-5 { color: brown; }
-  .number-6 { color: turquoise; }
-  .number-7 { color: black; }
-  .number-8 { color: gray; }
+#face:active {
+  border-style: inset;
+}
+
+/* Board */
+#board {
+  display: grid;
+  gap: var(--cell-gap);
+  background: var(--border-dark);
+  border: 4px inset var(--border-light);
+  grid-template-columns: repeat(var(--cols), var(--cell-size));
+  grid-template-rows: repeat(var(--rows), var(--cell-size));
+}
+
+/* Cells */
+.cell {
+  width: var(--cell-size);
+  height: var(--cell-size);
+  background: var(--bg-main);
+  border: 4px outset var(--border-light);
+  font-size: calc(0.6 * var(--cell-size));
+  line-height: calc(var(--cell-size) - 8px);
+  text-align: center;
+  user-select: none;
+}
+
+.cell:active {
+  border-style: inset;
+}
+
+/* Revealed Cells */
+.cell.revealed {
+  background: var(--bg-revealed);
+  border: 1px solid #999;
+  /* width: calc(var(--cell-size) + 6px) !important;
+  height: calc(var(--cell-size) + 6px) !important; */
+  line-height: calc(var(--cell-size)) !important;
+}
+
+/* Special Cell States */
+.cell.flagged {
+  color: var(--text-color);
+}
+
+.cell.mine {
+  background: red;
+}
+
+.cell.disabled {
+  pointer-events: none;
+}
+
+/* Number Colors */
+.number-1 { color: blue; }
+.number-2 { color: green; }
+.number-3 { color: red; }
+.number-4 { color: darkblue; }
+.number-5 { color: brown; }
+.number-6 { color: turquoise; }
+.number-7 { color: black; }
+.number-8 { color: gray; }

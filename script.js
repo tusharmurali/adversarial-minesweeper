@@ -1,50 +1,39 @@
-// Game configuration constants
-const rows = 7;
-const cols = 7;
-const totalMines = 8;
-const cellSize = 30;
+const rows = 7, cols = 7, totalMines = 8;
+let board = [], firstClick = true, revealedCount = 0, flagCount = 0;
+let startTime = null, timerInterval = null, gameEnded = false;
 
-// Game state variables
-let board = [];
 const directions = [
   [-1, -1], [-1, 0], [-1, 1],
-  [0, -1], /*self*/ [0, 1],
-  [1, -1], [1, 0], [1, 1]
+  [0, -1],          [0, 1],
+  [1, -1],  [1, 0], [1, 1]
 ];
-let minePositions = new Set();
-let firstClick = true;
-let revealedCount = 0;
-let timer = 0;
-let timerInterval = null;
-let gameEnded = false;
-let flagCount = 0;
 
-// DOM element references
-const boardEl = document.getElementById("board");
-const counterEl = document.getElementById("counter");
-const faceEl = document.getElementById("face");
-const timerEl = document.getElementById("timer");
+const $ = id => document.getElementById(id);
+const boardEl = $("board"), counterEl = $("counter"), faceEl = $("face");
+const timerEl = $("timer"), messageEl = $("message");
 
-// Initializes or resets the game
+function inBounds(r, c) {
+  return r >= 0 && r < rows && c >= 0 && c < cols;
+}
+
+function getNeighbors(r, c) {
+  return directions
+    .map(([dr, dc]) => [r + dr, c + dc])
+    .filter(([nr, nc]) => inBounds(nr, nc))
+    .map(([nr, nc]) => board[nr][nc]);
+}
+
 function startGame() {
-  // Reset game state
-  board = [];
-  minePositions = new Set();
-  firstClick = true;
-  revealedCount = 0;
-  flagCount = 0;
+  board = [], firstClick = true, revealedCount = 0, flagCount = 0;
   gameEnded = false;
   clearInterval(timerInterval);
-  timer = 0;
 
-  // Reset UI
-  timerEl.textContent = "000";
-  counterEl.textContent = String(totalMines).padStart(3, "0");
-  faceEl.textContent = "😊";
   boardEl.innerHTML = "";
   boardEl.style.pointerEvents = "auto";
-  boardEl.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
-  boardEl.style.gridTemplateRows = `repeat(${rows}, ${cellSize}px)`;
+  counterEl.textContent = String(totalMines).padStart(3, "0");
+  timerEl.textContent = "000";
+  faceEl.textContent = "😊";
+  messageEl.textContent = "";
 
   const fragment = document.createDocumentFragment();
 
@@ -52,30 +41,14 @@ function startGame() {
     const row = [];
     for (let c = 0; c < cols; c++) {
       const cell = {
-        r, c,
-        element: document.createElement("div"),
-        mine: false,
-        revealed: false,
-        flagged: false,
-        adjacent: 0,
+        r, c, mine: false, revealed: false, flagged: false, adjacent: 0,
+        element: document.createElement("div")
       };
 
       const el = cell.element;
       el.className = "cell";
-      el.style.width = `${cellSize}px`;
-      el.style.height = `${cellSize}px`;
-      el.style.lineHeight = `${cellSize - 2}px`;
-      el.style.fontSize = `${Math.floor(cellSize * 0.6)}px`;
-
-      el.addEventListener("click", () => {
-        if (cell.revealed && cell.adjacent > 0) chordCell(cell);
-        else handleClick(cell);
-      });
-
-      el.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        toggleFlag(cell);
-      });
+      el.addEventListener("click", () => cell.revealed && cell.adjacent > 0 ? chordCell(cell) : handleClick(cell));
+      el.addEventListener("contextmenu", e => (e.preventDefault(), toggleFlag(cell)));
 
       fragment.appendChild(el);
       row.push(cell);
@@ -86,287 +59,143 @@ function startGame() {
   boardEl.appendChild(fragment);
 }
 
-// Places mines randomly on the board, avoiding the first clicked cell and its neighbors
 function placeMines(safeCell) {
-  const avoid = new Set();
+  const avoid = new Set([`${safeCell.r},${safeCell.c}`, ...getNeighbors(safeCell.r, safeCell.c).map(n => `${n.r},${n.c}`)]);
+  const placed = new Set();
 
-  for (const [dr, dc] of directions) {
-    const nr = safeCell.r + dr;
-    const nc = safeCell.c + dc;
-    if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-      avoid.add(`${nr},${nc}`);
-    }
-  }
-  avoid.add(`${safeCell.r},${safeCell.c}`);
-
-  while (minePositions.size < totalMines) {
-    const r = Math.floor(Math.random() * rows);
-    const c = Math.floor(Math.random() * cols);
+  while (placed.size < totalMines) {
+    const r = Math.floor(Math.random() * rows), c = Math.floor(Math.random() * cols);
     const key = `${r},${c}`;
-    if (!minePositions.has(key) && !avoid.has(key)) {
-      minePositions.add(key);
+    if (!placed.has(key) && !avoid.has(key)) {
+      placed.add(key);
       board[r][c].mine = true;
     }
   }
 
-  // Update adjacent counts
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if (board[r][c].mine) continue;
-      let count = 0;
-      for (const [dr, dc] of directions) {
-        const nr = r + dr;
-        const nc = c + dc;
-        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && board[nr][nc].mine) {
-          count++;
-        }
-      }
-      board[r][c].adjacent = count;
+  board.flat().forEach(cell => {
+    if (!cell.mine) {
+      cell.adjacent = getNeighbors(cell.r, cell.c).filter(n => n.mine).length;
     }
-  }
-}
-
-
-// Helper: checks if two cells are neighbors (including diagonals)
-function isNeighbor(r1, c1, r2, c2) {
-  return Math.abs(r1 - r2) <= 1 && Math.abs(c1 - c2) <= 1;
+  });
 }
 
 function isMinePossible(targetCell) {
-  const maxMines = totalMines;
-  const constraints = [];
-  const toAssign = [];
-  const cellIdMap = new Map(); // Map cell => id
-  let idCounter = 0;
+  const constraints = [], toAssign = [];
 
-  // Assign unique IDs to cells
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const cell = board[r][c];
-      if (!cell.revealed && !cell.flagged) {
-        const id = idCounter++;
-        cellIdMap.set(cell, id);
-        toAssign.push(cell);
-      }
+  board.flat().forEach(cell => {
+    if (!cell.revealed && cell !== targetCell) toAssign.push(cell);
+    if (cell.revealed && cell.adjacent > 0) {
+      const unknown = getNeighbors(cell.r, cell.c).filter(n => !n.revealed);
+      constraints.push({ count: cell.adjacent, unknown });
     }
-  }
-
-  // Build constraints based on known revealed cells
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const cell = board[r][c];
-      if (cell.revealed && cell.adjacent > 0) {
-        let flagged = 0;
-        const unknown = [];
-
-        for (const [dr, dc] of directions) {
-          const nr = r + dr;
-          const nc = c + dc;
-          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-            const neighbor = board[nr][nc];
-            if (!neighbor.revealed && !neighbor.flagged) {
-              unknown.push(cellIdMap.get(neighbor));
-            } else if (neighbor.flagged || neighbor.mine) {
-              flagged++;
-            }
-          }
-        }
-
-        constraints.push({ count: cell.adjacent - flagged, unknown });
-      }
-    }
-  }
-
-  const targetId = cellIdMap.get(targetCell);
-  const total = toAssign.length;
-  const memo = new Map();
+  });
 
   function backtrack(i, count, mineSet) {
-    if (count > maxMines) return false;
-    if (i === total) return check(mineSet);
-
-    const key = `${i},${count},${mineSet.join(",")}`;
-    if (memo.has(key)) return memo.get(key);
-
+    if (count > totalMines) return null;
+    if (i === toAssign.length) return check(mineSet);
     const cell = toAssign[i];
-    const cellId = cellIdMap.get(cell);
 
-    // Try assigning a mine
-    mineSet.push(cellId);
-    if (backtrack(i + 1, count + 1, mineSet)) {
-      memo.set(key, true);
-      mineSet.pop();
-      return true;
-    }
+    mineSet.push(cell);
+    const withMine = backtrack(i + 1, count + 1, mineSet);
+    if (withMine) return withMine;
     mineSet.pop();
 
-    // Try not assigning a mine
-    if (backtrack(i + 1, count, mineSet)) {
-      memo.set(key, true);
-      return true;
-    }
-
-    memo.set(key, false);
-    return false;
+    return backtrack(i + 1, count, mineSet);
   }
 
   function check(mineSet) {
-    const mineLookup = new Set(mineSet);
-    for (const { unknown, count } of constraints) {
-      let mines = 0;
-      for (const id of unknown) {
-        if (mineLookup.has(id)) mines++;
-      }
-      if (mines !== count) return false;
-    }
-    return mineLookup.has(targetId);
+    const lookup = new Set(mineSet);
+    return constraints.every(({ unknown, count }) =>
+      unknown.filter(c => lookup.has(c)).length === count
+    ) ? [...mineSet] : null;
   }
 
-  return backtrack(0, 0, []);
+  return backtrack(0, 1, [targetCell]);
 }
 
-
-
-
-// Handles left-click logic
 function handleClick(cell) {
   if (cell.revealed || cell.flagged || gameEnded) return;
 
   if (firstClick) {
-    placeMines(cell); // Place mines only after the first click
+    placeMines(cell);
     firstClick = false;
+    startTime = performance.now();
     timerInterval = setInterval(() => {
-      timer++;
-      timerEl.textContent = String(timer).padStart(3, "0");
-    }, 1000);
+      const elapsed = Math.floor((performance.now() - startTime) / 1000);
+      timerEl.textContent = String(elapsed).padStart(3, "0");
+    }, 100);
   } else {
-    // After the first click, validate logically
-    if (isMinePossible(cell)) {
-      cell.element.classList.add("mine");
-      cell.element.textContent = "💣";
-      gameOver(false); // Logical error - ended due to unsafe guess
-      return;
-    }
+    const adversarial = isMinePossible(cell);
+    if (adversarial) return gameOver(adversarial);
   }
 
   reveal(cell);
-
-  if (cell.mine) {
-    // Game over if mine clicked
-    cell.element.classList.add("mine");
-    cell.element.textContent = "💣";
-    gameOver(false);
-  } else {
-    if (cell.adjacent === 0) {
-      revealAdjacent(cell);
-    }
-    checkWin();
-  }
+  if (cell.adjacent === 0) revealAdjacent(cell);
+  checkWin();
 }
 
-
-// Reveals a single cell (if not flagged or already revealed)
 function reveal(cell) {
   if (cell.revealed || cell.flagged) return;
   cell.revealed = true;
   cell.element.classList.add("revealed");
-
   if (cell.adjacent > 0) {
     cell.element.textContent = cell.adjacent;
     cell.element.classList.add(`number-${cell.adjacent}`);
   }
-
   revealedCount++;
 }
 
-// Recursively reveals all adjacent non-mine, non-flagged cells
 function revealAdjacent(cell) {
-  for (let dr = -1; dr <= 1; dr++) {
-    for (let dc = -1; dc <= 1; dc++) {
-      const nr = cell.r + dr;
-      const nc = cell.c + dc;
-      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-        const neighbor = board[nr][nc];
-        if (!neighbor.revealed && !neighbor.mine) {
-          reveal(neighbor);
-          if (neighbor.adjacent === 0) revealAdjacent(neighbor);
-        }
-      }
+  getNeighbors(cell.r, cell.c).forEach(n => {
+    if (!n.revealed && !n.mine) {
+      reveal(n);
+      if (n.adjacent === 0) revealAdjacent(n);
     }
-  }
+  });
 }
 
-// Implements the "chord" mechanic: if number of adjacent flags equals number on cell, reveal others
 function chordCell(cell) {
-  if (!cell.revealed || cell.adjacent === 0 || gameEnded) return;
-
-  let flaggedCount = 0;
-  const neighborsToReveal = [];
-
-  // Count flags and prepare to reveal others
-  for (let dr = -1; dr <= 1; dr++) {
-    for (let dc = -1; dc <= 1; dc++) {
-      const nr = cell.r + dr;
-      const nc = cell.c + dc;
-      if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
-      const neighbor = board[nr][nc];
-      if (neighbor.flagged) {
-        flaggedCount++;
-      } else if (!neighbor.revealed) {
-        neighborsToReveal.push(neighbor);
-      }
-    }
-  }
-
-  // Reveal if flags match the number
-  if (flaggedCount === cell.adjacent) {
-    for (const neighbor of neighborsToReveal) {
-      handleClick(neighbor);
-    }
+  const neighbors = getNeighbors(cell.r, cell.c);
+  const flagged = neighbors.filter(n => n.flagged).length;
+  if (flagged === cell.adjacent) {
+    neighbors.filter(n => !n.revealed && !n.flagged).forEach(handleClick);
   }
 }
 
-// Toggles a flag on a cell (right click)
 function toggleFlag(cell) {
   if (cell.revealed || gameEnded) return;
-
   cell.flagged = !cell.flagged;
-  if (cell.flagged) {
-    cell.element.textContent = "🚩";
-    flagCount++;
-  } else {
-    cell.element.textContent = "";
-    flagCount--;
-  }
-
-  const remaining = totalMines - flagCount;
-  counterEl.textContent = String(Math.max(0, remaining)).padStart(3, "0");
+  cell.element.textContent = cell.flagged ? "🚩" : "";
+  flagCount += cell.flagged ? 1 : -1;
+  counterEl.textContent = String(totalMines - flagCount).padStart(3, "0");
 }
 
-// Ends the game: reveal all mines and show win/lose face
-function gameOver(won) {
+function gameOver(adversarial = null) {
   clearInterval(timerInterval);
   boardEl.style.pointerEvents = "none";
   gameEnded = true;
-  faceEl.textContent = won ? "😎" : "😵";
+  faceEl.textContent = adversarial ? "😵" : "😎";
 
-  if (!won) {
-    // Show all mines if player loses
-    minePositions.forEach((pos) => {
-      const [r, c] = pos.split(",").map(Number);
-      const cell = board[r][c];
-      cell.element.textContent = "💣";
-      cell.element.classList.add("mine");
+  if (adversarial) {
+    adversarial[0].element.classList.add("mine");
+    board.flat().forEach(cell => {
+      if (adversarial.includes(cell)) {
+        if (!cell.flagged) {
+          cell.element.textContent = "💣";
+          cell.element.classList.add("revealed");
+        }
+      } else if (cell.flagged) {
+        cell.element.style.opacity = 0.5;
+      }
     });
+  } else {
+    const seconds = ((performance.now() - startTime) / 1000).toFixed(2);
+    messageEl.textContent = `You won in ${seconds} second${seconds !== "1.0" ? "s" : ""}!`;
   }
 }
 
-// Checks if the player has revealed all safe cells
 function checkWin() {
-  if (revealedCount === rows * cols - totalMines) {
-    gameOver(true);
-  }
+  if (revealedCount === rows * cols - totalMines) gameOver();
 }
 
-// Start the game on load
 startGame();
