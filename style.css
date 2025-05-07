@@ -143,8 +143,6 @@ body {
 .cell.revealed {
   background: var(--bg-revealed);
   border: 1px solid #999;
-  /* width: calc(var(--cell-size) + 6px) !important;
-  height: calc(var(--cell-size) + 6px) !important; */
   line-height: calc(var(--cell-size)) !important;
 }
 
