@@ -1,29 +1,264 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Adversarial Minesweeper</title>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <title>Evil Minesweeper | Authentic Edition</title>
+    <style>
+        :root { --bg: #bdbdbd; --teal: #008080; --white: #fff; --gray: #7b7b7b; }
+        
+        body { 
+            background: var(--teal); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            /* Classic Windows Font Stack */
+            font-family: 'MS Sans Serif', Tahoma, sans-serif; 
+            user-select: none; 
+            -webkit-user-select: none; 
+            image-rendering: pixelated; 
+        }
+
+        .window { 
+            background: var(--bg); 
+            padding: 9px; 
+            border: 4px solid; 
+            border-color: var(--white) var(--gray) var(--gray) var(--white); 
+        }
+
+        .inner { 
+            border: 4px solid; 
+            border-color: var(--gray) var(--white) var(--white) var(--gray); 
+            padding: 9px; 
+        }
+
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border: 3px solid; 
+            border-color: var(--gray) var(--white) var(--white) var(--gray); 
+            margin-bottom: 9px; 
+            padding: 6px 10px; 
+            height: 50px; 
+        }
+
+        /* Segmented Display Look */
+        .lcd { 
+            background: #000; 
+            color: #f00; 
+            font-family: 'Courier New', monospace; 
+            font-weight: 900; 
+            font-size: 34px; 
+            letter-spacing: 2px;
+            padding: 0 5px; 
+            min-width: 65px; 
+            text-align: center; 
+            border: 2px solid; 
+            border-color: #808080 var(--white) var(--white) #808080; 
+        }
+
+        .face { 
+            width: 42px; height: 42px; 
+            background: var(--bg); 
+            border: 3px solid; 
+            border-color: var(--white) var(--gray) var(--gray) var(--white); 
+            display: flex; justify-content: center; align-items: center; 
+            font-size: 26px; cursor: pointer;
+        }
+
+        .face:active { border-color: var(--gray) var(--bg) var(--bg) var(--gray); padding: 2px 0 0 2px; }
+
+        #grid { 
+            border: 4px solid; 
+            border-color: var(--gray) var(--white) var(--white) var(--gray); 
+            display: grid; 
+        }
+
+        .tile { 
+            width: 32px; height: 32px; 
+            box-sizing: border-box; 
+            border: 3px solid; 
+            border-color: var(--white) var(--gray) var(--gray) var(--white); 
+            display: flex; justify-content: center; align-items: center; 
+            font-size: 24px; /* Slightly larger for authenticity */
+            font-weight: 900; 
+            cursor: pointer;
+        }
+
+        .tile.pressing { border: 2px solid var(--gray); border-width: 2px 0 0 2px; background: var(--bg); }
+        .tile.revealed { border: 1px solid var(--gray); border-width: 1px 0 0 1px; background: var(--bg); cursor: default; }
+
+        /* Authentic Color Palette */
+        .n1 { color: #0000ff; } .n2 { color: #008000; } .n3 { color: #ff0000; } 
+        .n4 { color: #000080; } .n5 { color: #800000; } .n6 { color: #008080; }
+        .n7 { color: #000000; } .n8 { color: #808080; }
+
+        .mine { background: #ff0000 !important; }
+        .flagged::after { content: '🚩'; font-size: 16px; }
+        .death-origin { background-color: #ff0000 !important; }
+    </style>
 </head>
-<body>
-  <div id="page">
-    <header id="header">
-      <h1>Adversarial Minesweeper</h1>
-      <p><a href="https://github.com/tusharmurali/adversarial-minesweeper" target="_blank">View on GitHub</a></p>
-    </header>
+<body oncontextmenu="return false;">
+    <div class="window">
+        <div style="padding-bottom:10px;">
+            <select id="diff" onchange="init()" style="cursor:pointer; font-family: 'MS Sans Serif', sans-serif; font-size: 12px;">
+                <option value="beginner">Beginner</option>
+                <option value="intermediate" selected>Intermediate</option>
+                <option value="expert">Expert</option>
+            </select>
+        </div>
+        <div class="inner">
+            <div class="header">
+                <div class="lcd" id="m-count">000</div>
+                <div class="face" id="face" onclick="init()">😊</div>
+                <div class="lcd" id="timer">000</div>
+            </div>
+            <div id="grid"></div>
+        </div>
+    </div>
 
-    <main id="container">
-      <div id="topbar">
-        <div id="counter">099</div>
-        <div id="face" onclick="startGame()">😊</div>
-        <div id="timer">000</div>
-      </div>
-      <div id="board"></div>
-    </main>
+<script>
+    const CONFIGS = { beginner: { c: 9, r: 9, m: 10 }, intermediate: { c: 16, r: 16, m: 40 }, expert: { c: 30, r: 16, m: 99 } };
+    let grid = [], gameOver = false, minesLeft = 0, timerInterval, seconds = 0, firstMove = true, conf;
 
-    <div id="message"></div>
-  </div>
+    function init() {
+        conf = CONFIGS[document.getElementById('diff').value];
+        clearInterval(timerInterval);
+        gameOver = false; seconds = 0; minesLeft = conf.m; grid = []; firstMove = true;
+        document.getElementById('timer').innerText = "000";
+        document.getElementById('m-count').innerText = String(minesLeft).padStart(3, '0');
+        document.getElementById('face').innerText = "😊";
+        const container = document.getElementById('grid');
+        container.style.gridTemplateColumns = `repeat(${conf.c}, 32px)`;
+        container.innerHTML = '';
 
-  <script src="script.js"></script>
+        for (let i = 0; i < conf.c * conf.r; i++) {
+            const tile = { id: i, x: i % conf.c, y: Math.floor(i / conf.c), isMine: false, revealed: false, flagged: false, count: 0 };
+            const div = document.createElement('div');
+            div.className = 'tile';
+            div.id = `t-${i}`;
+            
+            div.onmousedown = (e) => {
+                if (gameOver) return;
+                if (e.button === 0 && !tile.revealed && !tile.flagged) {
+                    div.classList.add('pressing');
+                    document.getElementById('face').innerText = "😮";
+                }
+            };
+            
+            div.onmouseup = (e) => {
+                div.classList.remove('pressing');
+                if (gameOver) return;
+                document.getElementById('face').innerText = "😊";
+                if (e.button === 0) handleMainClick(tile);
+                if (e.button === 2) toggleFlag(tile);
+            };
+            container.appendChild(div);
+            grid.push(tile);
+        }
+    }
+
+    function handleMainClick(tile) {
+        if (tile.flagged) return;
+        if (tile.revealed) {
+            const neighbors = getNeighbors(tile);
+            if (neighbors.filter(n => n.flagged).length === tile.count) {
+                neighbors.forEach(n => { if (!n.revealed && !n.flagged) handleReveal(n); });
+            }
+            return;
+        }
+        handleReveal(tile);
+    }
+
+    function handleReveal(tile) {
+        if (gameOver || tile.flagged || tile.revealed) return;
+        if (firstMove) {
+            firstMove = false; startTimer(); seedBoard(tile); revealRecursive(tile);
+            return;
+        }
+        if (canBeMine(tile)) {
+            tile.isMine = true; explode(tile);
+        } else {
+            revealRecursive(tile); checkWin();
+        }
+    }
+
+    function seedBoard(safeTile) {
+        let safeZone = [safeTile, ...getNeighbors(safeTile)];
+        let placed = 0;
+        while (placed < conf.m) {
+            let idx = Math.floor(Math.random() * grid.length);
+            if (!grid[idx].isMine && !safeZone.includes(grid[idx])) {
+                grid[idx].isMine = true; placed++;
+            }
+        }
+    }
+
+    function canBeMine(tile) {
+        if (tile.isMine) return true;
+        tile.isMine = true; 
+        if (checkConsistency()) return true; 
+        tile.isMine = false;
+        return false;
+    }
+
+    function checkConsistency() {
+        for (let t of grid) {
+            if (t.revealed) {
+                const neighbors = getNeighbors(t);
+                if (neighbors.filter(n => n.isMine).length > t.count) return false;
+            }
+        }
+        return true;
+    }
+
+    function revealRecursive(tile) {
+        if (tile.revealed || tile.flagged || tile.isMine) return;
+        tile.revealed = true;
+        tile.count = getNeighbors(tile).filter(n => n.isMine).length;
+        const div = document.getElementById(`t-${tile.id}`);
+        div.className = 'tile revealed';
+        div.innerText = tile.count || '';
+        if (tile.count) div.classList.add(`n${tile.count}`);
+        if (tile.count === 0) getNeighbors(tile).forEach(n => revealRecursive(n));
+    }
+
+    function toggleFlag(tile) {
+        if (tile.revealed || gameOver) return;
+        tile.flagged = !tile.flagged;
+        minesLeft += tile.flagged ? -1 : 1;
+        document.getElementById('m-count').innerText = String(Math.max(0, minesLeft)).padStart(3, '0');
+        document.getElementById(`t-${tile.id}`).classList.toggle('flagged');
+    }
+
+    function getNeighbors(t) { return grid.filter(n => Math.abs(n.x - t.x) <= 1 && Math.abs(n.y - t.y) <= 1 && n !== t); }
+    function startTimer() { timerInterval = setInterval(() => { seconds = Math.min(999, seconds + 1); document.getElementById('timer').innerText = String(seconds).padStart(3, '0'); }, 1000); }
+
+    function explode(deathTile) {
+        gameOver = true; clearInterval(timerInterval);
+        document.getElementById('face').innerText = "😈";
+        grid.forEach(t => {
+            const d = document.getElementById(`t-${t.id}`);
+            if (t.isMine && !t.flagged) {
+                d.classList.add('mine');
+                d.innerText = '💣';
+                if (t === deathTile) d.style.backgroundColor = '#ff0000';
+            } else if (!t.isMine && t.flagged) {
+                d.innerText = '❌'; 
+            }
+        });
+    }
+
+    function checkWin() {
+        if (grid.filter(t => !t.isMine && !t.revealed).length === 0) {
+            gameOver = true; clearInterval(timerInterval);
+            document.getElementById('face').innerText = "😎";
+        }
+    }
+
+    init();
+</script>
 </body>
 </html>
