@@ -13,7 +13,6 @@
             align-items: center; 
             height: 100vh; 
             margin: 0; 
-            /* Classic Windows Font Stack */
             font-family: 'MS Sans Serif', Tahoma, sans-serif; 
             user-select: none; 
             -webkit-user-select: none; 
@@ -22,13 +21,54 @@
 
         .window { 
             background: var(--bg); 
-            padding: 9px; 
-            border: 4px solid; 
+            padding: 3px; 
+            border: 3px solid; 
             border-color: var(--white) var(--gray) var(--gray) var(--white); 
         }
 
+        /* The Title Bar */
+        .title-bar {
+            background: linear-gradient(90deg, #000080, #1084d0);
+            height: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2px;
+            margin-bottom: 4px;
+        }
+
+        .title-text {
+            color: white;
+            font-weight: bold;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+
+        /* The Button Row */
+        .toolbar {
+            display: flex;
+            gap: 4px;
+            padding: 2px 4px 6px 4px;
+        }
+
+        .toolbar button {
+            flex: 1;
+            font-family: 'MS Sans Serif', sans-serif;
+            font-size: 10px;
+            background: var(--bg);
+            border: 2px solid;
+            border-color: var(--white) var(--gray) var(--gray) var(--white);
+            cursor: pointer;
+            padding: 2px 0;
+        }
+
+        .toolbar button:active {
+            border-color: var(--gray) var(--white) var(--white) var(--gray);
+            padding: 3px 0 1px 1px;
+        }
+
         .inner { 
-            border: 4px solid; 
+            border: 3px solid; 
             border-color: var(--gray) var(--white) var(--white) var(--gray); 
             padding: 9px; 
         }
@@ -44,7 +84,6 @@
             height: 50px; 
         }
 
-        /* Segmented Display Look */
         .lcd { 
             background: #000; 
             color: #f00; 
@@ -82,7 +121,7 @@
             border: 3px solid; 
             border-color: var(--white) var(--gray) var(--gray) var(--white); 
             display: flex; justify-content: center; align-items: center; 
-            font-size: 24px; /* Slightly larger for authenticity */
+            font-size: 24px; 
             font-weight: 900; 
             cursor: pointer;
         }
@@ -90,25 +129,29 @@
         .tile.pressing { border: 2px solid var(--gray); border-width: 2px 0 0 2px; background: var(--bg); }
         .tile.revealed { border: 1px solid var(--gray); border-width: 1px 0 0 1px; background: var(--bg); cursor: default; }
 
-        /* Authentic Color Palette */
         .n1 { color: #0000ff; } .n2 { color: #008000; } .n3 { color: #ff0000; } 
         .n4 { color: #000080; } .n5 { color: #800000; } .n6 { color: #008080; }
         .n7 { color: #000000; } .n8 { color: #808080; }
 
         .mine { background: #ff0000 !important; }
         .flagged::after { content: '🚩'; font-size: 16px; }
-        .death-origin { background-color: #ff0000 !important; }
     </style>
 </head>
 <body oncontextmenu="return false;">
+
     <div class="window">
-        <div style="padding-bottom:10px;">
-            <select id="diff" onchange="init()" style="cursor:pointer; font-family: 'MS Sans Serif', sans-serif; font-size: 12px;">
-                <option value="beginner">Beginner</option>
-                <option value="intermediate" selected>Intermediate</option>
-                <option value="expert">Expert</option>
-            </select>
+        <!-- Title Bar -->
+        <div class="title-bar">
+            <div class="title-text">Adversarial Minesweeper</div>
         </div>
+
+        <!-- Difficulty Buttons -->
+        <div class="toolbar">
+            <button onclick="init('beginner')">Beginner</button>
+            <button onclick="init('intermediate')">Intermediate</button>
+            <button onclick="init('expert')">Expert</button>
+        </div>
+
         <div class="inner">
             <div class="header">
                 <div class="lcd" id="m-count">000</div>
@@ -121,15 +164,19 @@
 
 <script>
     const CONFIGS = { beginner: { c: 9, r: 9, m: 10 }, intermediate: { c: 16, r: 16, m: 40 }, expert: { c: 30, r: 16, m: 99 } };
-    let grid = [], gameOver = false, minesLeft = 0, timerInterval, seconds = 0, firstMove = true, conf;
+    let grid = [], gameOver = false, minesLeft = 0, timerInterval, seconds = 0, firstMove = true, currentDiff = 'intermediate';
 
-    function init() {
-        conf = CONFIGS[document.getElementById('diff').value];
+    function init(diff) {
+        if (diff) currentDiff = diff;
+        const conf = CONFIGS[currentDiff];
+        
         clearInterval(timerInterval);
         gameOver = false; seconds = 0; minesLeft = conf.m; grid = []; firstMove = true;
+        
         document.getElementById('timer').innerText = "000";
         document.getElementById('m-count').innerText = String(minesLeft).padStart(3, '0');
         document.getElementById('face').innerText = "😊";
+        
         const container = document.getElementById('grid');
         container.style.gridTemplateColumns = `repeat(${conf.c}, 32px)`;
         container.innerHTML = '';
@@ -160,6 +207,9 @@
         }
     }
 
+    // ... (Keep your existing handleMainClick, handleReveal, seedBoard, etc. functions here) ...
+    // These functions don't change because the game logic is independent of the UI.
+
     function handleMainClick(tile) {
         if (tile.flagged) return;
         if (tile.revealed) {
@@ -188,6 +238,7 @@
     function seedBoard(safeTile) {
         let safeZone = [safeTile, ...getNeighbors(safeTile)];
         let placed = 0;
+        const conf = CONFIGS[currentDiff];
         while (placed < conf.m) {
             let idx = Math.floor(Math.random() * grid.length);
             if (!grid[idx].isMine && !safeZone.includes(grid[idx])) {
